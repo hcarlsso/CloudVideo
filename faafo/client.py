@@ -16,7 +16,7 @@ import requests
 from pprint import pprint
 import time
 MAX_WAIT_CYCLES = 10
-WAIT_BETWEEN_CYCLES = 1
+WAIT_BETWEEN_CYCLES = 0.1
 
 def wait_to_transfer(url):
     '''
@@ -38,8 +38,11 @@ def wait_to_transfer(url):
         cycles = cycles + 1
 
 
+def send_file(url, file_to_send):
 
-def make_one_request(url):
+    return requests.post(url, files={'file': open(file_to_send, 'rb')})
+
+def make_one_request(url, file_to_send):
 
     # s = requests.session()
 

@@ -14,6 +14,8 @@ import httpretty
 from sure import expect
 import unittest
 import sys
+import tempfile
+import os
 
 from faafo import client
 
@@ -50,8 +52,16 @@ class TestRest(unittest.TestCase):
             responses = responses
         )
 
-        response = client.make_one_request(url)
+        # Create the file to stream
+        f = tempfile.NamedTemporaryFile(delete=False)
+        path = f.name
+        f.write("Hello World!\n")
+        f.close()
+        print(path)
+        response = client.make_one_request(url, path)
         # expect(response.json()).to.equal({"status": "ok"})
+
+        os.unlink(path)
 
     @httpretty.activate
     def test_wait(self):
@@ -78,6 +88,34 @@ class TestRest(unittest.TestCase):
         )
         data  = client.wait_to_transfer(url + queue_location)
         self.assertDictEqual(data, {'status':'ready'})
+
+
+    @httpretty.activate
+    def test_upload(self):
+        url = "http://localhost:8090/queue/12345"
+        body = '{"status": "uploading"}'
+        httpretty.register_uri(
+            httpretty.POST, url,
+            status = 200,
+            body=body,
+            content_type="application/json"
+        )
+
+        # Create the file to stream
+        f = tempfile.NamedTemporaryFile(delete=False)
+        path = f.name
+        f.write("Hello World!\n")
+        f.close()
+
+        response = client.send_file(url, path)
+
+        expect(response.text).to.equal(body)
+        expect(httpretty.last_request().method).to.equal("POST")
+
+        # How to test that we got the right answer?
+
+        os.unlink(path)
+
 
 if __name__ == '__main__':
     unittest.main()
