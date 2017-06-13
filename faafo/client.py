@@ -15,8 +15,10 @@
 import requests
 from pprint import pprint
 import time
+import shutil
 MAX_WAIT_CYCLES = 10
 WAIT_BETWEEN_CYCLES = 0.1
+OUTPUTFILE = "output.avi"
 
 def wait_to_transfer(url):
     '''
@@ -31,12 +33,13 @@ def wait_to_transfer(url):
             wait_to_transfer = False
             time.sleep(WAIT_BETWEEN_CYCLES)
         elif response.status_code == 303:
-            return response.json()
+            pass
         else:
             raise StandardError
 
         cycles = cycles + 1
 
+    return response.json()
 
 def send_file(url, file_to_send):
 
@@ -60,10 +63,23 @@ def make_one_request(url, file_to_send):
         else:
             raise StandardError
 
+        # Upload the file
+        resp_upload = send_file(url_status, file_to_send)
+        info_upload = resp_upload.json()
+        url_wait_conversion = url + info_upload['download_wait']
+
+        # Wait for the file to be processed
+        data = wait_to_transfer(url_wait_conversion)
+        url_download = url + data['download']
+
+        response_converted_video = session.get(url_download, stream = True)
+        with open(OUTPUTFILE, "wb") as handle:
+            shutil.copyfileobj(response_converted_video.raw, handle)
+        # And we are done
     else:
         data = None
 
-    return data
+    return OUTPUTFILE
 
 def main():
     pass

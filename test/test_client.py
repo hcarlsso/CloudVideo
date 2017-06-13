@@ -52,16 +52,55 @@ class TestRest(unittest.TestCase):
             responses = responses
         )
 
+
+        # The upload phase
+        queue_location_conversion = "queue/45678"
+        httpretty.register_uri(
+            httpretty.POST, url +  queue_location,
+            status = 200,
+            body='{"download_wait" : "%s"}' % queue_location_conversion,
+            content_type="application/json"
+        )
+
+        # Wait for conversion
+        responses=[
+            httpretty.Response(
+                body='{"status": "pending"}',
+                status=200,
+                content_type="application/json",
+            ),
+            httpretty.Response(
+                body='{"download": "mypath"}',
+                status=303,
+                content_type="application/json",
+            ),
+        ]
+        httpretty.register_uri(
+            httpretty.GET, url + queue_location_conversion,
+            responses = responses
+        )
+
+        #
+        httpretty.register_uri(
+            httpretty.GET, url + "mypath",
+            body = 'RANDOM TEXT',
+            content_type="application/json",
+        )
+
         # Create the file to stream
         f = tempfile.NamedTemporaryFile(delete=False)
         path = f.name
         f.write("Hello World!\n")
         f.close()
-        print(path)
         response = client.make_one_request(url, path)
-        # expect(response.json()).to.equal({"status": "ok"})
 
+        with open(response, 'r') as myfile:
+            data=myfile.read().replace('\n', '')
+
+        self.assertEqual(data, 'RANDOM TEXT')
         os.unlink(path)
+        os.unlink(response)
+
 
     @httpretty.activate
     def test_wait(self):
