@@ -13,15 +13,54 @@
 # under the License.
 
 import requests
+from pprint import pprint
+import time
+MAX_WAIT_CYCLES = 10
+WAIT_BETWEEN_CYCLES = 1
+
+def wait_to_transfer(url):
+    '''
+    How to ensure we dont wait until infinity
+    '''
+
+    wait_to_transfer = True
+    cycles = 0
+    while wait_to_transfer or cycles < MAX_WAIT_CYCLES:
+        response = requests.get(url)
+        if response.status_code == 200:
+            wait_to_transfer = False
+            time.sleep(WAIT_BETWEEN_CYCLES)
+        elif response.status_code == 303:
+            return response.json()
+        else:
+            raise StandardError
+
+        cycles = cycles + 1
+
+
 
 def make_one_request(url):
 
     # s = requests.session()
 
+    session = requests.session()
+    response = session.get(url)
 
-    r = requests.get(url)
+    # Accepted
+    if response.status_code == 202:
+        # We are safe to
+        data = response.json()
 
-    return r
+        if 'location' in data:
+            url_status = url + data['location']
+            data = wait_to_transfer(url_status )
+        else:
+            raise StandardError
+
+    else:
+        data = None
+
+    return data
 
 def main():
     pass

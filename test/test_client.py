@@ -10,11 +10,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import sys
-
-from pprint import pprint
-pprint(sys.path)
-
 import httpretty
 from sure import expect
 import unittest
@@ -26,13 +21,63 @@ class TestRest(unittest.TestCase):
     @httpretty.activate
     def test_rest(self):
         url = "http://localhost:8090/"
-        httpretty.register_uri(httpretty.GET, url,
-                               body='{"status": "ok"}',
-                               content_type="application/json")
+        queue_location = "queue/12345"
+        body = '{"location": "%s"}' % queue_location
+        # import pdb; pdb.set_trace()
+        httpretty.register_uri(
+            httpretty.GET, url,
+            body=body,
+            status = 202,
+            content_type="application/json"
+        )
 
+        # Responses in the queue
+        # Can include more information here
+        responses=[
+            httpretty.Response(
+                body='{"status": "pending"}',
+                status=200,
+                content_type="application/json",
+            ),
+            httpretty.Response(
+                body='{"status": "ready"}',
+                status=303,
+                content_type="application/json",
+            ),
+        ]
+        httpretty.register_uri(
+            httpretty.GET, url +  queue_location,
+            responses = responses
+        )
 
         response = client.make_one_request(url)
-        expect(response.json()).to.equal({"status": "ok"})
+        # expect(response.json()).to.equal({"status": "ok"})
+
+    @httpretty.activate
+    def test_wait(self):
+        url = "http://localhost:8090/"
+        queue_location = "queue/12345"
+
+        # Responses in the queue
+        # Can include more information here
+        responses=[
+            httpretty.Response(
+                body='{"status": "pending"}',
+                status=200,
+                content_type="application/json",
+            ),
+            httpretty.Response(
+                body='{"status": "ready"}',
+                status=303,
+                content_type="application/json",
+            ),
+        ]
+        httpretty.register_uri(
+            httpretty.GET, url +  queue_location,
+            responses = responses
+        )
+        data  = client.wait_to_transfer(url + queue_location)
+        self.assertDictEqual(data, {'status':'ready'})
 
 if __name__ == '__main__':
     unittest.main()
