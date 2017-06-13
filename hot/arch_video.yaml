@@ -1,0 +1,193 @@
+heat_template_version: 2014-10-16
+
+
+description: |
+  A template to bring up the Video Converter application as micro services.
+
+
+parameters:
+
+  key_name:
+    type: string
+    description: Name of an existing KeyPair to enable SSH access to the instances
+    default: xerces_hakcar
+    constraints:
+      - custom_constraint: nova.keypair
+        description: Must already exist on your cloud
+
+  flavor:
+    type: string
+    description: The flavor the application is to use
+    default: c1m1
+    constraints:
+      - custom_constraint: nova.flavor
+        description:  Must be a valid flavor provided by your cloud provider.
+  image:
+    type: string
+    description: name of the image to use to create the instance
+    default: ubuntu 16.04
+  faafo_source:
+    type: string
+    description: The http location of the faafo application install script
+    default: https://raw.githubusercontent.com/hcarlsso/CloudVideo/master/contrib/install.sh
+  public_net:
+    type: string
+    default: internet
+    description: >
+      ID or name of public network for which floating IP addresses will be allocated
+  private_net_cidr:
+    type: string
+    default: 192.0.2.0/24
+    description: Private network address (CIDR notation)
+  private_net_gateway:
+    type: string
+    default: 192.0.2.1
+    description: Private network gateway address
+
+resources:
+  private_net:
+    type: OS::Neutron::Net
+
+  private_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      network: { get_resource: private_net }
+      cidr: { get_param: private_net_cidr }
+      gateway_ip: { get_param: private_net_gateway }
+      dns_nameservers:
+        - 8.8.4.4
+        - 8.8.8.8
+
+  router:
+    type: OS::Neutron::Router
+    properties:
+      external_gateway_info:
+        network: { get_param: public_net }
+
+  router_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: router }
+      subnet_id: { get_resource: private_subnet }
+
+  instance_database:
+    type: OS::Nova::Server
+    properties:
+      name: instance_database
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
+      networks:
+        - network: { get_resource: private_net }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            echo 'Change hostname...'
+            sudo echo "127.0.1.1 instance_database" >> /etc/hosts
+            echo 'Run faafo installer...'
+            curl -L -s faafo_installer | bash -s -- -i database
+            echo 'Change mysql stuff...'
+            sudo sed -i -e "/bind-address/d" /etc/mysql/mysql.conf.d/mysqld.cnf
+            sudo service mysql restart
+          params:
+            faafo_installer: { get_param: faafo_source }
+
+  instance_messaging:
+    type: OS::Nova::Server
+    properties:
+      name: instance_messaging
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
+      networks:
+        - network: { get_resource: private_net }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            echo 'Change hostname...'
+            sudo echo "127.0.1.1 instance_messaging" >> /etc/hosts
+            echo 'Run faafo installer...'
+            curl -L -s faafo_installer | bash -s -- -i messaging
+            # Guest account can only be used on local host, change that
+            echo 'Change rabbit mq stuff...'
+            sudo update-rc.d rabbitmq-server enable
+            sudo service rabbitmq-server start
+            sudo rabbitmqctl add_user faafo guest
+            sudo rabbitmqctl set_user_tags faafo administrator
+            sudo rabbitmqctl set_permissions -p / faafo ".*" ".*" ".*"
+          params:
+            faafo_installer: { get_param: faafo_source }
+
+  # API instances
+  instance_api:
+    type: OS::Nova::Server
+    depends_on: [instance_messaging, instance_database]
+    properties:
+      name: instance_api
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
+      networks:
+        - port: { get_resource: instance_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            sudo echo "127.0.0.1 instance_api" >> /etc/hosts
+            curl -L -s faafo_installer | bash -s -- \
+            -i faafo -r api -m 'amqp://faafo:guest@messaging_ip:5672/' \
+            -d 'mysql+pymysql://faafo:password@database_ip:3306/faafo'
+          params:
+            messaging_ip:  { get_attr: [instance_messaging, first_address] }
+            database_ip:  { get_attr: [instance_database, first_address] }
+            faafo_installer: { get_param: faafo_source }
+
+  floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network: { get_param: public_net }
+
+  association:
+    type: OS::Neutron::FloatingIPAssociation
+    properties:
+      floatingip_id: { get_resource: floating_ip }
+      port_id: { get_resource: instance_port }
+
+  instance_port:
+    type: OS::Neutron::Port
+    properties:
+      network: { get_resource: private_net }
+      fixed_ips:
+        - subnet: { get_resource: private_subnet }
+
+  # Worker instance
+  instance_api:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
+      networks:
+        - network: { get_resource: private_net }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            curl -L -s faafo_installer | bash -s -- \
+            -i faafo -r worker -e 'http://api_ip' -m 'amqp://faafo:guest@messaging_ip:5672/'
+          params:
+            api_ip: { get_attr: [instance_api, first_address] }
+            messaging_ip:  { get_attr: [instance_messaging, first_address] }
+            faafo_installer: { get_param: faafo_source }
+
+outputs:
+  faafo_ip:
+    description: The faafo url
+    value:
+      list_join: ['', ['Faafo can be found at: http://', get_attr: [ floating_ip, floating_ip_address ]]]
