@@ -34,7 +34,7 @@ CONF = cfg.CONF
 
 api_opts = [
     cfg.StrOpt('listen-address',
-               default='0.0.0.0',
+               default='0.0.0.0', # If you have the debugger disabled or trust the users on your network, you can make the server publicly by listning on 0.0.0.0
                help='Listen address.'),
     cfg.IntOpt('bind-port',
                default='80',
@@ -57,6 +57,8 @@ log.setup(CONF, 'api',
           version=version.version_info.version_string())
 
 template_path = resource_filename(__name__, "templates")
+
+# Create the Flask app
 app = flask.Flask('faafo.api', template_folder=template_path)
 app.config['DEBUG'] = CONF.debug
 app.config['SQLALCHEMY_DATABASE_URI'] = CONF.database_url
