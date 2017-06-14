@@ -15,9 +15,12 @@ import copy
 import cStringIO
 from pkg_resources import resource_filename
 
+
 import flask
 import flask.ext.restless
 import flask.ext.sqlalchemy
+
+from flask import jsonify
 from flask_bootstrap import Bootstrap
 from kombu import Connection
 from kombu.pools import producers
@@ -29,87 +32,51 @@ from sqlalchemy.dialects import mysql
 from faafo import queues
 from faafo import version
 
-LOG = log.getLogger('faafo.api')
-CONF = cfg.CONF
+# LOG = log.getLogger('faafo.api')
+# CONF = cfg.CONF
 
-api_opts = [
-    cfg.StrOpt('listen-address',
-               default='0.0.0.0', # If you have the debugger disabled or trust the users on your network, you can make the server publicly by listning on 0.0.0.0
-               help='Listen address.'),
-    cfg.IntOpt('bind-port',
-               default='80',
-               help='Bind port.'),
-    cfg.StrOpt('database-url',
-               default='sqlite:////tmp/sqlite.db',
-               help='Database connection URL.')
-]
+# api_opts = [
+#     cfg.StrOpt('listen-address',
+#                default='0.0.0.0', # If you have the debugger disabled or trust the users on your network, you can make the server publicly by listning on 0.0.0.0
+#                help='Listen address.'),
+#     cfg.IntOpt('bind-port',
+#                default='80',
+#                help='Bind port.'),
+#     cfg.StrOpt('database-url',
+#                default='sqlite:////tmp/sqlite.db',
+#                help='Database connection URL.')
+# ]
 
-CONF.register_opts(api_opts)
+# CONF.register_opts(api_opts)
 
-log.register_options(CONF)
-log.set_defaults()
+# log.register_options(CONF)
+# log.set_defaults()
 
-CONF(project='api', prog='faafo-api',
-     default_config_files=['/etc/faafo/faafo.conf'],
-     version=version.version_info.version_string())
+# CONF(project='api', prog='faafo-api',
+#      default_config_files=['/etc/faafo/faafo.conf'],
+#      version=version.version_info.version_string())
 
-log.setup(CONF, 'api',
-          version=version.version_info.version_string())
+# log.setup(CONF, 'api',
+#           version=version.version_info.version_string())
 
 template_path = resource_filename(__name__, "templates")
 
 # Create the Flask app
 app = flask.Flask('faafo.api', template_folder=template_path)
-app.config['DEBUG'] = CONF.debug
-app.config['SQLALCHEMY_DATABASE_URI'] = CONF.database_url
-db = flask.ext.sqlalchemy.SQLAlchemy(app)
-Bootstrap(app)
+# app.config['DEBUG'] = CONF.debug
+# app.config['SQLALCHEMY_DATABASE_URI'] = CONF.database_url
+# db = flask.ext.sqlalchemy.SQLAlchemy(app)
+# Bootstrap(app)
 
 
 def list_opts():
     """Entry point for oslo-config-generator."""
     return [(None, copy.deepcopy(api_opts))]
 
-
-class Fractal(db.Model):
-    uuid = db.Column(db.String(36), primary_key=True)
-    checksum = db.Column(db.String(256), unique=True)
-    url = db.Column(db.String(256), nullable=True)
-    duration = db.Column(db.Float)
-    size = db.Column(db.Integer, nullable=True)
-    width = db.Column(db.Integer, nullable=False)
-    height = db.Column(db.Integer, nullable=False)
-    iterations = db.Column(db.Integer, nullable=False)
-    xa = db.Column(db.Float, nullable=False)
-    xb = db.Column(db.Float, nullable=False)
-    ya = db.Column(db.Float, nullable=False)
-    yb = db.Column(db.Float, nullable=False)
-
-    if CONF.database_url.startswith('mysql'):
-        LOG.debug('Using MySQL database backend')
-        image = db.Column(mysql.MEDIUMBLOB, nullable=True)
-    else:
-        image = db.Column(db.LargeBinary, nullable=True)
-
-    generated_by = db.Column(db.String(256), nullable=True)
-
-    def __repr__(self):
-        return '<Fractal %s>' % self.uuid
-
-
-db.create_all()
-manager = flask.ext.restless.APIManager(app, flask_sqlalchemy_db=db)
-connection = Connection(CONF.transport_url)
-
-
 @app.route('/', methods=['GET'])
-@app.route('/index', methods=['GET'])
-@app.route('/index/<int:page>', methods=['GET'])
-def index(page=1):
-    fractals = Fractal.query.filter(
-        (Fractal.checksum != None) & (Fractal.size != None)).paginate(  # noqa
-            page, 5, error_out=False)
-    return flask.render_template('index.html', fractals=fractals)
+def index():
+    data = {'location' : 'queue/123'}
+    return jsonify(data), 202
 
 
 @app.route('/fractal/<string:fractalid>', methods=['GET'])
@@ -141,8 +108,9 @@ def generate_fractal(**kwargs):
 
 
 def main():
-    manager.create_api(Fractal, methods=['GET', 'POST', 'DELETE', 'PUT'],
-                       postprocessors={'POST': [generate_fractal]},
-                       exclude_columns=['image'],
-                       url_prefix='/v1')
-    app.run(host=CONF.listen_address, port=CONF.bind_port)
+    # manager.create_api(Fractal, methods=['GET', 'POST', 'DELETE', 'PUT'],
+    #                    postprocessors={'POST': [generate_fractal]},
+    #                    exclude_columns=['image'],
+    #                    url_prefix='/v1')
+    # app.run(host=CONF.listen_address, port=CONF.bind_port)
+    app.run(host='0.0.0.0', port=80)
