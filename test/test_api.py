@@ -1,9 +1,8 @@
 import flask
 import unittest
 import json
+import uuid
 
-import sys
-# import pdb; pdb.set_trace()
 from faafo.api.service import app
 
 class FlaskrTestCase(unittest.TestCase):
@@ -14,6 +13,11 @@ class FlaskrTestCase(unittest.TestCase):
             self.assertEqual(resp.status_code, 202)
 
 
+    def test_check_queue(self):
+        with app.test_client() as c:
+            my_uuid = str(uuid.uuid4())
+            resp = c.get('/queue/' + my_uuid)
+            self.assertEqual(resp.status_code, 404)
 
 
 

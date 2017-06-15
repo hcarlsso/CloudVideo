@@ -14,7 +14,7 @@ import base64
 import copy
 import cStringIO
 from pkg_resources import resource_filename
-
+import uuid
 
 import flask
 import flask.ext.restless
@@ -69,31 +69,34 @@ app = flask.Flask('faafo.api', template_folder=template_path)
 # Bootstrap(app)
 
 
-def list_opts():
-    """Entry point for oslo-config-generator."""
-    return [(None, copy.deepcopy(api_opts))]
-
 @app.route('/', methods=['GET'])
 def index():
-    data = {'location' : 'queue/123'}
+    # Create random string for identification
+    my_uuid = str(uuid.uuid4())
+    data = {'location' : 'queue/' + my_uuid}
+
+    # Put the job inside the rabbit queue.
     return jsonify(data), 202
 
 
-@app.route('/fractal/<string:fractalid>', methods=['GET'])
-def get_fractal(fractalid):
-    fractal = Fractal.query.filter_by(uuid=fractalid).first()
-    if not fractal:
+@app.route('/queue/<string:jobid>', methods=['GET'])
+def check_worker_queue(jobid):
+    # Check in database for job.
+    if True:
+        # Job does not exists
         response = flask.jsonify({'code': 404,
-                                  'message': 'Fracal not found'})
+                                  'status': 'job not found'})
         response.status_code = 404
+    elif False:
+        # Job is not ready to be processed
+        response = flask.jsonify({'code': 200,
+                                  'status': 'pending'})
+        response.status_code = 200
     else:
-        image_data = base64.b64decode(fractal.image)
-        image = Image.open(cStringIO.StringIO(image_data))
-        output = cStringIO.StringIO()
-        image.save(output, "PNG")
-        image.seek(0)
-        response = flask.make_response(output.getvalue())
-        response.content_type = "image/png"
+        # Here the job is ready to be processed.
+        response = flask.jsonify({'code': 303,
+                                  'status': 'pending'})
+        response.status_code = 303
 
     return response
 
