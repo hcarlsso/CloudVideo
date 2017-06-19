@@ -59,14 +59,16 @@ from faafo import version
 # log.setup(CONF, 'api',
 #           version=version.version_info.version_string())
 
-template_path = resource_filename(__name__, "templates")
+def create_app(database_uri = None):
 
-# Create the Flask app
-app = flask.Flask('faafo.api', template_folder=template_path)
-# app.config['DEBUG'] = CONF.debug
-# app.config['SQLALCHEMY_DATABASE_URI'] = CONF.database_url
-# db = flask.ext.sqlalchemy.SQLAlchemy(app)
-# Bootstrap(app)
+    template_path = resource_filename(__name__, "templates")
+    # Create the Flask app
+    app = flask.Flask('faafo.api', template_folder=template_path)
+    # app.config['DEBUG'] = CONF.debug
+    # app.config['SQLALCHEMY_DATABASE_URI'] = CONF.database_url
+    # db = flask.ext.sqlalchemy.SQLAlchemy(app)
+    # Bootstrap(app)
+    return app
 
 
 @app.route('/', methods=['GET'])
@@ -111,6 +113,7 @@ def generate_fractal(**kwargs):
 
 
 def main():
+    app = create_app()
     # manager.create_api(Fractal, methods=['GET', 'POST', 'DELETE', 'PUT'],
     #                    postprocessors={'POST': [generate_fractal]},
     #                    exclude_columns=['image'],
