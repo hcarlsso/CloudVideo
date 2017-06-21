@@ -3,13 +3,19 @@ import unittest
 import json
 import uuid
 
-from faafo.api.service import create_app
+from faafo.api import create_app
 
 class FlaskrTestCase(unittest.TestCase):
 
     def setUp(self):
-        self.app = create_app()
-        # self.client = self.app.test_client()
+
+        options = {
+            'config_dict' : {
+                'DEBUG' : True,
+                'SQLALCHEMY_DATABASE_URI' : 'sqlite:////tmp/sqlite.db'
+            }
+        }
+        self.app = create_app(**options)
 
     def test_simple(self):
         with self.app.test_client() as c:
