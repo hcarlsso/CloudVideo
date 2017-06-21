@@ -12,7 +12,8 @@ class FlaskrTestCase(unittest.TestCase):
         options = {
             'config_dict' : {
                 'DEBUG' : True,
-                'SQLALCHEMY_DATABASE_URI' : 'sqlite:////tmp/sqlite.db'
+                'SQLALCHEMY_DATABASE_URI' : 'sqlite:////tmp/sqlite.db',
+                'TESTING' : True,
             }
         }
         self.app = create_app(**options)
@@ -29,6 +30,18 @@ class FlaskrTestCase(unittest.TestCase):
             resp = c.get('/queue/' + my_uuid)
             self.assertEqual(resp.status_code, 404)
 
+    def test_post_db(self):
+        with self.app.test_client() as c:
+            my_uuid = str(uuid.uuid4())
+            res = {
+                'uuid' : my_uuid,
+                'url' : 'bajs',
+                'status' : 1
+            }
+            import pdb; pdb.set_trace()
+            resp = c.put('/v1/queue/' + my_uuid)
+
+            # Write more here on the put method
 
 
 if __name__ == '__main__':

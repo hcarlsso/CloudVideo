@@ -1,4 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
+from flask_restless import APIManager
 
 db = SQLAlchemy()
 
@@ -9,3 +10,11 @@ class Queue(db.Model):
 
     def __repr__(self):
         return '<Queue %s>' % self.uuid
+
+
+manager = APIManager(flask_sqlalchemy_db=db)
+manager.create_api(
+    Queue,
+    methods=['GET', 'POST', 'DELETE', 'PUT'],
+    collection_name = 'queue',
+    url_prefix='/v1')
