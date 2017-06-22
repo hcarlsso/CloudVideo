@@ -13,15 +13,14 @@ def create_app(**kwargs):
     db = get_db()
     db.init_app(app)
 
-
     # Configuration
     config_dict = kwargs.get('config_dict', None)
 
-    if config_dict:
-        app.config.update(config_dict)
-
-    manager = get_api(db)
     with app.app_context():
+
+        manager = get_api(db)
+        if config_dict:
+            app.config.update(config_dict)
         # Extensions like Flask-SQLAlchemy now know what the "current" app
         # is while within this block. Therefore, you can now run........
         db.create_all()
@@ -29,9 +28,9 @@ def create_app(**kwargs):
 
 
 
-    # Register blueprints
-    from .service import mainPage
-    app.register_blueprint(mainPage)
+        # Register blueprints
+        from .service import mainPage
+        app.register_blueprint(mainPage)
     # Restless api
 
     # Bootstrap(app)
