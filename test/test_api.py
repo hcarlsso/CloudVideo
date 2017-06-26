@@ -50,6 +50,8 @@ class FlaskrTestCase(unittest.TestCase):
                 'status' : 1
             }
             headers = {'content-type': 'application/json'}
+
+            # Create a new resource
             resp_post = client.post('/v1/queue' , data= json.dumps(ref),
                                headers = headers)
             self.assertEqual(resp_post.status_code, 201)
@@ -59,6 +61,21 @@ class FlaskrTestCase(unittest.TestCase):
             self.assertEqual(resp_get.status_code, 200)
             self.assertDictEqual(json.loads(resp_get.data), ref)
 
+            # Update the resource
+            ref2 = {
+                'uuid' : my_uuid,
+                'url' : 'bajs',
+                'status' : 2
+            }
+
+            resp_put = client.put('/v1/queue/' + my_uuid ,
+                                   data= json.dumps(ref2),
+                                   headers = headers)
+            self.assertEqual(resp_put.status_code, 200)
+
+            resp_get2 = client.get('/v1/queue/' + my_uuid)
+            self.assertEqual(resp_get2.status_code, 200)
+            self.assertDictEqual(json.loads(resp_get2.data), ref2)
 
 if __name__ == '__main__':
     unittest.main()
