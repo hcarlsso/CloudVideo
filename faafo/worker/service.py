@@ -56,11 +56,13 @@ class Worker(ConsumerMixin):
     Tell the queue worker is ready to work
     '''
 
-    def __init__(self, connection):
+    def __init__(self, connection, task_queue, endpoint):
         self.connection = connection
+        self.endpoint = endpoint
+        self.task_queue = task_queue
 
     def get_consumers(self, Consumer, channel):
-        return [Consumer(queues=queues.task_queue,
+        return [Consumer(queues=self.task_queue,
                          accept=['json'],
                          callbacks=[self.process])]
 
@@ -78,7 +80,7 @@ class Worker(ConsumerMixin):
                    'Accept': 'text/plain'}
 
         requests.put(
-            "%s/v1/queue/%s" % (endpoint_url, str(task['uuid'])),
+            "%s/v1/queue/%s" % (self.endpoint, str(task['uuid'])),
             json.dumps(result), headers=headers)
 
         message.ack()
