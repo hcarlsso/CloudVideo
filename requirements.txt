@@ -5,7 +5,7 @@ iso8601
 anyjson>=0.3.3
 eventlet>=0.17.4
 PyMySQL>=0.6.2,<0.7  # 0.7 design change breaks faafo, MIT License
-Pillow==2.4.0 # MIT
+Pillow==8.1.1 # MIT
 requests>=2.5.2
 Flask-Bootstrap
 Flask>=0.10,<1.0
