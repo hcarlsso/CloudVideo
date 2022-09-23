@@ -19,7 +19,7 @@ httpretty==0.8.14
 idna==2.5
 iso8601==0.1.11
 itsdangerous==0.24
-Jinja2==2.9.6
+Jinja2==2.11.3
 kombu==4.0.2
 MarkupSafe==1.0
 mimerender==0.6.0
